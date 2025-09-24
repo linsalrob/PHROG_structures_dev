@@ -77,12 +77,10 @@
         const baseThumb = mode === 'oligomers' ? 'oligomer_thumbnails' : 'thumbnails';
         let html = `<h2>${mode} Dataset ${id}</h2>`;
 
-      const otherMode = mode === 'oligomers' ? 'monomers' : 'oligomers';
-      html += `
-	      <div class="mode-toggle" style="text-align:center; margin:10px;">
-	      <button onclick="switchMode('${mode}','${id}')">Switch to ${otherMode)</button>
-	      </div>
-      `;
+        const otherMode = mode === 'oligomers' ? 'monomers' : 'oligomers';
+        html += '<div class="mode-toggle" style="text-align:center; margin:10px;">';
+        html += '<button onclick="switchMode('${mode}','${id}')">Switch to ${otherMode)</button>';
+        html += '</div>';
 
         html += '<img id="fullImage" class="full-image" style="display:none;">';
         html += '<span id="linkWrapper" style="display:none">';
