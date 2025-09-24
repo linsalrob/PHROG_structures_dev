@@ -83,7 +83,7 @@
         html += '<h3>All images in this dataset</h3>';
         html += `<div class="grid">`;
         for (let i = 1; i <= 100; i++) {
-          const num = i.toString().padStart(3, '0');
+          const num = i.toString().padStart(2, '0');
           const name = `${id}${num}`;
           html += `<img src="${baseThumb}/${id}/${name}.png" alt="${name}" onclick="viewImage('${mode}','${id}','${name}')">`;
         }
