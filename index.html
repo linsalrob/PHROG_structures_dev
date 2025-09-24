@@ -153,6 +153,7 @@
       link.href = `${basePdb}/${phrogId}/${name}.pdb.gz`;
       link.download = `${name}.pdb.gz`;
       link.innerText = `Download ${name}.pdb.gz`;
+      link.style.display = 'inline';
       perm.href = `#/dataset/${mode}/${phrogId}/${name}`;
       perm.style.display = 'inline';
       perm.innerText = `Permanent link to ${name}`;
