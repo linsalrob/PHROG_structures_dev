@@ -79,7 +79,7 @@
 
         const otherMode = mode === 'oligomers' ? 'monomers' : 'oligomers';
         html += '<div class="mode-toggle" style="text-align:center; margin:10px;">';
-        html += '<button onclick="switchMode('${mode}','${id}')">Switch to ${otherMode)</button>';
+        html += `<button onclick="switchMode('${mode}','${id}')">Switch to ${otherMode}</button>`;
         html += '</div>';
 
         html += '<img id="fullImage" class="full-image" style="display:none;">';
