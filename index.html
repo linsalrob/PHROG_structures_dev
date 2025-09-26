@@ -68,7 +68,7 @@
         html += '<div class="montage-list">';
         for (let i = 0; i < 388; i++) {
           const id = `phrog_${i.toString().padStart(3, '0')}`;
-          html += `<a href="#/dataset/${mode}/${id}"><img src="${base}/${id}_montage.png" alt="Montage ${id}"><br>${id}</a>`;
+          html += `<a href="#/dataset/${mode}/${id}"><img src="${base}/${id}_montage.png" alt="Montage ${id}" onerror="this.src='images/not_available.png'"><br>${id}</a>`;
         }
         html += '</div></section>';
         return html;
@@ -91,7 +91,7 @@
         for (let i = 1; i <= 100; i++) {
           const num = i.toString().padStart(2, '0');
           const name = `${id}${num}`;
-          html += `<img src="${baseThumb}/${id}/${name}.png" alt="${name}" onclick="viewImage('${mode}','${id}','${name}')">`;
+          html += `<img src="${baseThumb}/${id}/${name}.png" alt="${name}" onclick="viewImage('${mode}','${id}','${name}')" onerror="this.src='images/not_available.png'">`;
         }
         html += '</div>';
         return html;
@@ -134,6 +134,8 @@
       const img = document.getElementById('fullImage');
       const link = document.getElementById('downloadLink');
       const perm = document.getElementById('permaLink');
+      // this is the github branch that we use for the github pages
+      const ghbranch = 'oligomers'; 
       spinner.style.display = 'block';
       error.style.display = 'none';
       const basePng = mode === 'oligomers' ? 'oligomer_png' : 'png';
@@ -150,7 +152,7 @@
       img.src = `${basePng}/${phrogId}/${name}.png`;
       img.style.display = 'block';
       document.getElementById('linkWrapper').style.display = 'block';
-      link.href = `${basePdb}/${phrogId}/${name}.pdb.gz`;
+      link.href = `https://github.com/linsalrob/PHROG_structures/raw/refs/heads/${ghbranch}/${basePdb}/${phrogId}/${name}.pdb.gz`;
       link.download = `${name}.pdb.gz`;
       link.innerText = `Download ${name}.pdb.gz`;
       link.style.display = 'inline';
