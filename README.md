@@ -32,10 +32,16 @@ curl -O https://projects.pawsey.org.au/phrogstructures-public/pdb/phrog_005/phro
 wget https://projects.pawsey.org.au/phrogstructures-public/oligomer_pdb/phrog_005/phrog_00505.pdb.gz
 ```
 
-To download everything (about 5 GB), use any S3 client with anonymous access. For example, with [rclone](https://rclone.org/):
+To download everything (about 5 GB), use `SHA256SUMS` as the list of files, then check the downloads against it. The bucket cannot be listed anonymously.
 
 ```
-rclone copy --s3-provider Ceph --s3-endpoint https://projects.pawsey.org.au :s3:phrogstructures-public phrog_structures
+B=https://projects.pawsey.org.au/phrogstructures-public
+mkdir phrog_structures && cd phrog_structures
+curl -O $B/SHA256SUMS
+awk -v b=$B '{print b "/" $2}' SHA256SUMS | wget -x -nH --cut-dirs=1 -i -
+sha256sum -c SHA256SUMS
 ```
+
+Use `grep` on `SHA256SUMS` first to download a subset, e.g. `grep ' oligomer_pdb/' SHA256SUMS`.
 
 [`manifest.json`](manifest.json) lists which structures exist for each PHROG. See [docs/acacia.md](docs/acacia.md) for how the data are published and checked.

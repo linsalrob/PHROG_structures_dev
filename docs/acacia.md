@@ -83,8 +83,18 @@ the root files.
 
 The policy is the one in Pawsey's
 [pshell and S3 remotes](https://pawsey.atlassian.net/wiki/spaces/US/pages/51926450/pshell%2Band%2BS3%2Bremotes)
-guide (Example 4). It allows anonymous `s3:GetObject` and `s3:ListBucket` on this bucket only.
-Writes and deletes still need the owner's keys.
+guide (Example 4). It grants anonymous `s3:GetObject` and `s3:ListBucket` on this bucket only.
+Writes and deletes still need the owner's keys. It was applied on 2026-11-10 and checked
+anonymously with `curl`:
+
+| Check | Result |
+|---|---|
+| GET of 10 sample objects (monomer and oligomer `.pdb.gz`, PNGs, thumbnails, montages, both `phrog_00003` fixes, `phrog_25222`) | 200; all match `SHA256SUMS` |
+| Content types | `image/png`, `application/gzip` |
+| PUT of a new key | 403 |
+| DELETE of a key that does not exist | 403 |
+| LIST of the bucket | 403. Acacia does not honour `s3:ListBucket` for anonymous users, so the README uses `SHA256SUMS` as the file list. |
+| Source bucket `phrogstructures` | still 403 |
 
 ```
 module load pshell/1.2.2
