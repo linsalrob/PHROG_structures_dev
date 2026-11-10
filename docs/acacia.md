@@ -136,10 +136,10 @@ branch" setting, GitHub keeps publishing the whole branch.
 
 ## git-lfs
 
-The repository still tracks `*.pdb` and `*.gz` with git-lfs, and the sample data in this
-repository have not been removed. Once the Acacia-backed site has been checked in a browser,
-the data directories and the `.gitattributes` rules can be removed from the branch. That does
-not delete LFS objects from earlier commits, so it does not by itself reduce GitHub LFS storage.
+This repository no longer uses git-lfs. After the Acacia-backed site was checked in a browser
+(2026-11-10: images load from `projects.pawsey.org.au`), the sample data directories and the
+`.gitattributes` rules were removed. Earlier commits still point at their LFS objects, so this
+does not by itself reduce GitHub LFS storage; that needs the objects deleted on GitHub.
 
 ## Production cutover (not yet done)
 
