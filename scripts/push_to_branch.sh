@@ -10,7 +10,8 @@ base_tree=$(gh api "repos/$REPO/git/commits/$parent" --jq .tree.sha)
 entries=$(for f in "$@"; do
   sha=$(jq -n --arg c "$(base64 -w0 "$f")" '{content:$c, encoding:"base64"}' \
         | gh api "repos/$REPO/git/blobs" --input - --jq .sha)
-  jq -n --arg p "$f" --arg s "$sha" '{path:$p, mode:"100644", type:"blob", sha:$s}'
+  mode=100644; [[ -x $f ]] && mode=100755
+  jq -n --arg p "$f" --arg s "$sha" --arg m "$mode" '{path:$p, mode:$m, type:"blob", sha:$s}'
 done | jq -s .)
 
 tree=$(jq -n --arg b "$base_tree" --argjson t "$entries" '{base_tree:$b, tree:$t}' \
