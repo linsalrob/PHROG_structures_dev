@@ -67,6 +67,10 @@
     const phrogName = (n) => `phrog_${n.toString().padStart(5, '0')}`;
     const isGroupId = (id) => /^phrog_\d{3}$/.test(id) && parseInt(id.slice(6), 10) < NGROUPS;
     const isPhrogName = (id, name) => new RegExp(`^${id}\\d{2}$`).test(name);
+    const groupRange = (id) => {
+      const g = parseInt(id.slice(6), 10);
+      return `PHROGs ${Math.max(1, g * 100)}&ndash;${Math.min(g * 100 + 99, MAX_PHROG)}`;
+    };
 
     const routes = {
       '/': () => `
@@ -94,14 +98,15 @@
         html += '<div class="montage-list">';
         for (let i = 0; i < NGROUPS; i++) {
           const id = groupId(i);
-          html += `<a href="#/dataset/${mode}/${id}"><img src="${base}/${id}_montage.png" alt="Montage ${id}" loading="lazy" onerror="this.onerror=null; this.src='images/not_available.png'"><br>${id}</a>`;
+          html += `<a href="#/dataset/${mode}/${id}"><img src="${base}/${id}_montage.png" alt="Montage ${id}" loading="lazy" onerror="this.onerror=null; this.src='images/not_available.png'"><br>${id}<br>${groupRange(id)}</a>`;
         }
         html += '</div></section>';
         return html;
       },
       '/dataset/:mode/:id': (mode, id) => {
         const baseThumb = mode === 'oligomers' ? 'oligomer_thumbnails' : 'thumbnails';
-        let html = `<h2>${mode} Dataset ${id}</h2>`;
+        let html = `<h2>${mode}: ${groupRange(id)} (${id})</h2>`;
+        html += `<p style="text-align:center">PHROGs are grouped in sets of 100. This page shows every PHROG in ${id}; click a thumbnail to view that structure.</p>`;
 
         const otherMode = mode === 'oligomers' ? 'monomers' : 'oligomers';
         html += '<div class="mode-toggle" style="text-align:center; margin:10px;">';
@@ -112,7 +117,7 @@
         html += '<div id="linkWrapper" class="link-wrapper" style="display:none">';
         html += '<a id="permaLink" class="perma-link">Permanent Link</a> | <a id="downloadLink" class="download-link">Download PDB</a>';
         html += '</div>';
-        html += '<h3>All images in this dataset</h3>';
+        html += `<h3>All ${groupRange(id)}</h3>`;
         html += `<div class="grid">`;
         for (let i = 0; i < 100; i++) {
           const num = i.toString().padStart(2, '0');
