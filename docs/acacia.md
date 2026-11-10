@@ -128,32 +128,42 @@ Plain `<img>` tags and download links do not need CORS. The site's only scripted
 `.github/workflows/pages.yml` runs `npm test` and then `scripts/stage_site.sh`. The script
 copies an allowlist of files into `_site/`. It fails if the result is larger than 5 MB, or
 contains PNG, PDB or `.gz` files outside `images/`, or contains git-lfs pointers. On a push to
-`main`, `_site/` is deployed with `actions/deploy-pages`. Pull requests run only the build and
-checks.
+the site branch (`main` in PHROG_structures_dev, `oligomers` in PHROG_structures), `_site/` is
+deployed with `actions/deploy-pages`. Pull requests run only the build and checks.
 
-This requires **Settings → Pages → Source = GitHub Actions**. With the current "Deploy from a
-branch" setting, GitHub keeps publishing the whole branch.
+The checkout is sparse and blobless, so CI never fetches the image and structure directories.
+Production's `oligomers` branch still holds them as ordinary git blobs (about 3.5 GB).
+
+This requires **Settings → Pages → Source = GitHub Actions**. With "Deploy from a branch",
+GitHub publishes the whole branch.
 
 ## git-lfs
 
-This repository no longer uses git-lfs. After the Acacia-backed site was checked in a browser
-(2026-11-10: images load from `projects.pawsey.org.au`), the sample data directories and the
-`.gitattributes` rules were removed. Earlier commits still point at their LFS objects, so this
-does not by itself reduce GitHub LFS storage; that needs the objects deleted on GitHub.
+PHROG_structures_dev no longer uses git-lfs. After the Acacia-backed site was checked in a
+browser (2026-11-10: images load from `projects.pawsey.org.au`), its sample data directories
+and `.gitattributes` rules were removed. Earlier commits still point at their LFS objects, so
+this does not by itself reduce GitHub LFS storage; that needs the objects deleted on GitHub.
 
-## Production cutover (not yet done)
+Production's `oligomers` branch still has its data directories and LFS rules, which keeps the
+rollback below simple.
 
-Production (`linsalrob/PHROG_structures`, branch `oligomers`) is unchanged. To move it over
-after the dev site is approved:
+## Production cutover (2026-11-10)
 
-1. Copy `index.html`, `manifest.json`, `package.json`, `package-lock.json`, `tests/`,
-   `scripts/stage_site.sh`, `scripts/build_manifest.py` and `.github/workflows/pages.yml` to
-   `oligomers`. Change the workflow's `branches: [main]` and the deploy job's
-   `refs/heads/main` to `oligomers`.
-2. In production's Settings → Pages, set Source = GitHub Actions. Once the push triggers the
-   workflow, check that its artifact is a few hundred KB, not 3.56 GB.
-3. Check the live gallery: montages, group pages and viewer in both modes, a PDB download,
-   and that the browser's network panel shows images coming from `projects.pawsey.org.au`.
-4. **Rollback:** set Source back to "Deploy from a branch: `oligomers` / root" and revert the
-   `index.html` commit. The images are still in the branch, so the old site comes back as it
-   was. The deploy timeouts may come back with it.
+Production (`linsalrob/PHROG_structures`, branch `oligomers`) was moved over after the dev site
+was approved:
+
+1. `index.html`, `manifest.json`, `package.json`, `package-lock.json`, `tests/`, `scripts/`,
+   `docs/`, `README.md`, `DEVELOPER.md`, `.gitignore` and `.github/workflows/pages.yml` were
+   copied to `oligomers` with `scripts/push_to_branch.sh`. In the workflow, `main` is replaced
+   by `oligomers`.
+2. Settings → Pages → Source was set to GitHub Actions
+   (`gh api -X PUT repos/linsalrob/PHROG_structures/pages -f build_type=workflow`). The
+   `github-pages` environment already allowed deployments from `oligomers`.
+3. Check after each deploy: the artifact is a few hundred KB, and the live gallery loads
+   montages, group pages and the viewer in both modes, with images and PDB downloads from
+   `projects.pawsey.org.au`.
+
+**Rollback:** set Source back to "Deploy from a branch: `oligomers` / root"
+(`gh api -X PUT repos/linsalrob/PHROG_structures/pages -f build_type=legacy -f 'source[branch]=oligomers' -f 'source[path]=/'`)
+and revert the cutover commit. The images are still in the branch, so the old site comes back
+as it was. The deploy timeouts may come back with it.
