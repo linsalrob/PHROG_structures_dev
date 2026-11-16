@@ -265,6 +265,10 @@
         if (box.dataset.phrog !== String(phrog)) return;  // another PHROG was opened meanwhile
         const p = m && m.phrogs[phrog];
         box.style.display = 'block';
+        if (!m) {
+          box.innerHTML = `<p>Oligomer prediction metrics for PHROG ${phrog} could not be loaded.</p>`;
+          return;
+        }
         if (!p) {
           box.innerHTML = `<p>There are no oligomer predictions for PHROG ${phrog}.</p>`;
           return;

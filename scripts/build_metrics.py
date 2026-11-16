@@ -18,7 +18,8 @@ stoichiometry); a PHROG with metrics but no oligomer structure was assigned a mo
     {"cols": [...], "phrogs": {"505": {"a": <assigned subunits, 1 = monomer>,
                                        "s": [<rank-1 row for 2 subunits>, ..., <10 subunits>]}}}
 Each row holds the values named in "cols" (per-chain metrics averaged over chains), or null when
-that stoichiometry was not predicted. <site>/ranks/phrog_NNN.json holds ranks 2-5, fetched only
+that stoichiometry was not predicted. Every selected group gets both files, even if none of its
+PHROGs has metrics. <site>/ranks/phrog_NNN.json holds ranks 2-5, fetched only
 when a reader expands a row: {"cols": [...], "phrogs": {"505": [[<rank 2 row>, ..., <rank 5 row>]
 for 2..10 subunits, or null]}}.
 
@@ -111,12 +112,18 @@ def main():
                     default=set(range(NGROUPS)))
     args = ap.parse_args()
 
+    # A wrong path would otherwise yield no structures and silently make every PHROG a monomer.
+    for d in (args.pickles, args.oligomer_pdb):
+        if not os.path.isdir(d):
+            ap.error(f"{d} is not a directory")
     assigned = {}
     for dp, _, fs in os.walk(args.oligomer_pdb):
         for f in fs:
             m = re.fullmatch(r"phrog_(\d{5})\.pdb\.gz", f)
             if m and int(m.group(1)) // 100 in args.groups:
                 assigned[int(m.group(1))] = chain_count(os.path.join(dp, f))
+    if not assigned:
+        ap.error(f"no oligomer structures (phrog_NNNNN.pdb.gz) for the selected groups in {args.oligomer_pdb}")
 
     groups = [{} for _ in range(NGROUPS)]
     ranks = [{} for _ in range(NGROUPS)]
@@ -151,7 +158,9 @@ def main():
         os.makedirs(os.path.join(args.site, sub), exist_ok=True)
         for g, phrogs in enumerate(data):
             path = os.path.join(args.site, sub, f"phrog_{g:03d}.json")
-            if phrogs:
+            # Every selected group gets a file, even with no PHROGs in it, so the site can tell
+            # "no predictions" (absent from a loaded file) from "not loaded" (no file).
+            if g in args.groups:
                 with open(path, "w") as h:
                     json.dump({"cols": COLS, "phrogs": phrogs}, h, separators=(",", ":"))
                     h.write("\n")

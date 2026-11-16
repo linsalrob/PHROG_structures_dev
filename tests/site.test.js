@@ -110,6 +110,9 @@ const srcs = (d, sel) => [...d.querySelectorAll(sel)].map((i) => i.getAttribute(
   await go(w, '#/dataset/monomers/phrog_000/phrog_00002');
   box = d.getElementById('metrics');
   ok(box.textContent === 'There are no oligomer predictions for PHROG 2.', 'PHROG without metrics says so');
+  await go(w, '#/dataset/oligomers/phrog_006/phrog_00602');
+  box = d.getElementById('metrics');
+  ok(box.textContent === 'Oligomer prediction metrics for PHROG 602 could not be loaded.', 'unloadable metrics are not reported as absent');
 
   // search, autocomplete, mode switch
   await go(w, '#/');
