@@ -27,6 +27,17 @@
     .spinner { display: none; margin: 20px auto; border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     .error-message { text-align: center; color: red; font-weight: bold; margin-top: 10px; display: none; }
+    .metrics { max-width: 760px; margin: 10px auto; padding: 0 10px; box-sizing: border-box; }
+    .metrics .table-wrap { overflow-x: auto; }
+    .metrics table { border-collapse: collapse; width: 100%; background: white; font-size: 0.9em; }
+    .metrics th, .metrics td { padding: 4px 8px; text-align: right; border-bottom: 1px solid #ddd; white-space: nowrap; }
+    .metrics th { background: #eee; cursor: help; }
+    .metrics th:first-child, .metrics td:first-child { text-align: left; }
+    .metrics tr.assigned { background: #fff3c4; font-weight: bold; }
+    .metrics tr.rank td { color: #555; background: #fafafa; font-weight: normal; }
+    .metrics tr.rank td:first-child { padding-left: 2em; }
+    .metrics button.expand { border: none; background: none; padding: 0; font: inherit; color: #0366d6; cursor: pointer; }
+    .metrics p { margin: 6px 0; }
   </style>
 </head>
 <body>
@@ -133,6 +144,7 @@
         html += '<div id="linkWrapper" class="link-wrapper" style="display:none">';
         html += '<a id="permaLink" class="perma-link">Permanent Link</a><span id="linkSep"> | </span><a id="downloadLink" class="download-link">Download PDB</a>';
         html += '</div>';
+        html += '<div id="metrics" class="metrics" style="display:none"></div>';
         html += `<h3>All ${groupRange(id)}</h3>`;
         html += `<div class="grid">`;
         for (const n of members) {
@@ -220,7 +232,84 @@
         showError(hasPdb ? `There is no image of ${name} yet, but its structure can be downloaded.`
                          : `PHROG ${phrog} has no ${mode.slice(0, -1)} structure.`);
       }
+      showMetrics(phrogId, name);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Oligomer prediction metrics (made by scripts/build_metrics.py). metrics/<group>.json holds the
+    // rank-1 model of each stoichiometry; metrics/ranks/<group>.json holds ranks 2-5 and is only
+    // fetched when a row is expanded. Every metric for every rank is on Acacia as JSON.
+    const METRIC_COLS = {
+      iptm: ['ipTM', 'Interface predicted TM-score', 2],
+      ptm: ['pTM', 'Predicted TM-score', 2],
+      pdockq2: ['pDockQ2', 'pDockQ2, mean over chains', 3],
+      mean_plddt: ['pLDDT', 'Mean pLDDT', 1],
+      avgif_pae: ['avgif PAE', 'Average interface PAE score (avgif_pae), mean over chains', 3],
+    };
+    const metricsCache = {};
+    const getMetrics = (path) => {
+      if (!(path in metricsCache)) {
+        metricsCache[path] = fetch(path).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      }
+      return metricsCache[path];
+    };
+    const colInfo = (c) => METRIC_COLS[c] || [c, c, 3];
+    const metricCells = (cols, row) => cols.map((c, i) => `<td>${row[i].toFixed(colInfo(c)[2])}</td>`).join('');
+
+    function showMetrics(phrogId, name) {
+      const box = document.getElementById('metrics');
+      const phrog = parseInt(name.slice(6), 10);
+      box.dataset.phrog = phrog;
+      box.style.display = 'none';
+      getMetrics(`metrics/${phrogId}.json`).then((m) => {
+        if (box.dataset.phrog !== String(phrog)) return;  // another PHROG was opened meanwhile
+        const p = m && m.phrogs[phrog];
+        box.style.display = 'block';
+        if (!p) {
+          box.innerHTML = `<p>There are no oligomer predictions for PHROG ${phrog}.</p>`;
+          return;
+        }
+        const cols = m.cols;
+        let html = '<h3>Oligomer prediction metrics</h3><p>';
+        html += p.a > 1
+          ? `PHROG ${phrog} was assigned <b>${p.a} subunits</b> (highlighted). The oligomer structure is the rank 1 model.`
+          : `PHROG ${phrog} was assigned as a <b>monomer</b>, so no oligomer structure is shown. These are its predicted oligomers.`;
+        html += ' Each row is the rank 1 model; click the number of subunits to see ranks 2&ndash;5.</p>';
+        html += '<div class="table-wrap"><table><thead><tr><th title="Number of subunits">Subunits</th>';
+        html += cols.map((c) => `<th title="${colInfo(c)[1]}">${colInfo(c)[0]}</th>`).join('');
+        html += '</tr></thead><tbody>';
+        p.s.forEach((row, i) => {
+          const k = i + 2;
+          html += `<tr data-k="${k}"${k === p.a ? ' class="assigned"' : ''}>`;
+          html += row
+            ? `<td><button class="expand" onclick="toggleRanks('${phrogId}', ${phrog}, ${k}, this)">&#9656; ${k}</button></td>${metricCells(cols, row)}`
+            : `<td>${k}</td><td colspan="${cols.length}">not predicted</td>`;
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        html += `<p><a href="${ASSET_BASE}metrics/${phrogId}/${name}.json" download="${name}_metrics.json">Download all metrics for ${name} (JSON: every rank, per-chain values and contacts)</a></p>`;
+        box.innerHTML = html;
+      });
+    }
+
+    function toggleRanks(phrogId, phrog, k, button) {
+      const tr = button.closest('tr');
+      const shown = tr.parentNode.querySelectorAll(`tr.rank[data-k="${k}"]`);
+      if (shown.length) {
+        shown.forEach((r) => r.remove());
+        button.innerHTML = `&#9656; ${k}`;
+        return;
+      }
+      button.innerHTML = `&#9662; ${k}`;
+      getMetrics(`metrics/ranks/${phrogId}.json`).then((m) => {
+        if (!tr.isConnected || tr.parentNode.querySelector(`tr.rank[data-k="${k}"]`)) return;
+        const ranks = m && m.phrogs[phrog] && m.phrogs[phrog][k - 2];
+        const cols = m ? m.cols : [];
+        const rows = ranks && ranks.length
+          ? ranks.map((row, j) => `<tr class="rank" data-k="${k}"><td>rank ${j + 2}</td>${metricCells(cols, row)}</tr>`)
+          : [`<tr class="rank" data-k="${k}"><td colspan="${tr.children.length}">Ranks 2&ndash;5 could not be loaded.</td></tr>`];
+        tr.insertAdjacentHTML('afterend', rows.join(''));
+      });
     }
 
     function parseRoute() {

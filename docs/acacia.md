@@ -1,8 +1,10 @@
 # Serving the gallery assets from Acacia
 
 The gallery's images and structures are served from a public, read-only bucket on Pawsey's
-Acacia object store. GitHub Pages serves only the small front end: `index.html`,
-`manifest.json` and `images/not_available.png`, about 350 KB in all. Before this change,
+Acacia object store. GitHub Pages serves only the front end: `index.html`, `manifest.json`,
+`images/not_available.png` and the oligomer metrics summary in `metrics/` (see
+[Oligomer prediction metrics](#oligomer-prediction-metrics)).
+Without `metrics/` the front end is about 350 KB. Before this change,
 GitHub Pages served the images from the repository, and production's Pages artifact was 3.56 GB.
 That was enough for deploys to time out (production run
 [42740727687](https://github.com/linsalrob/PHROG_structures/actions/runs/42740727687),
@@ -107,8 +109,9 @@ info phrogstructures-public
 
 To withdraw public access: `policy phrogstructures-public - *`.
 
-Plain `<img>` tags and download links do not need CORS. The site's only scripted request is for
-`manifest.json`, which is on the same origin.
+Plain `<img>` tags and download links do not need CORS. The bucket sends no CORS headers, so the
+site's scripted requests (`manifest.json` and `metrics/*.json`) are all for files on Pages, on the
+same origin.
 
 ## Adding or changing assets
 
@@ -123,10 +126,51 @@ Plain `<img>` tags and download links do not need CORS. The site's only scripted
 4. If the PHROG range grows past `phrog_388`, update `NGROUPS` and `MAX_PHROG` in `index.html`.
    Also update `NGROUPS` in `scripts/build_manifest.py`.
 
+## Oligomer prediction metrics
+
+Each PHROG's page shows the confidence metrics of its predicted oligomers: one row per
+stoichiometry (2–10 subunits), from the rank 1 model, with the assigned stoichiometry highlighted.
+A row expands to show ranks 2–5. PHROGs assigned as monomers have no oligomer structure, but
+their metrics are still shown, as the evidence for that assignment.
+
+The source is Susie Grigson's per-PHROG pickles (shared on Google Drive, 2026-11-15; 22,554
+PHROGs, all 6,902 oligomers among them). `scripts/build_metrics.py` reads them with a restricted
+unpickler that accepts only numpy floats. The assigned stoichiometry is the number of chains in
+the PHROG's oligomer structure, and that structure is the rank 1 model of it; PHROGs with metrics
+but no oligomer structure were assigned as monomers.
+
+| Output | Where | Contents |
+|---|---|---|
+| `metrics/phrog_NNN.json` | this repository, deployed to Pages | rank 1: ipTM, pTM, pDockQ2 and avgif_pae (each averaged over chains), mean pLDDT |
+| `metrics/ranks/phrog_NNN.json` | this repository, deployed to Pages | the same for ranks 2–5, fetched only when a row is expanded |
+| `metrics/phrog_NNN/phrog_NNNNN.json` | `phrogstructures-public` | every metric for every rank, including per-chain values and contact counts, rounded to 4 decimal places; linked from each PHROG's page |
+
+The summary files are served from Pages because the bucket sends no CORS headers. Max PAE is in
+the full files only: it is about 31.4 Å for nearly every model.
+
+To rebuild after new predictions:
+
+```
+rclone copy GoogleDrive: raw_pkl --drive-root-folder-id <folder id>
+rclone copy A18:phrogstructures-public/oligomer_pdb oligomer_pdb
+scripts/build_metrics.py raw_pkl oligomer_pdb --site metrics --full full
+rclone copy full A18:phrogstructures-public/metrics
+```
+
+Then add the full files' checksums to `SHA256SUMS`, upload it, and commit `metrics/`.
+
+**Dev builds a subset.** To keep its Pages deploy small, PHROG_structures_dev holds metrics for
+four groups only, built with `--groups 0,5,100,252` (255 PHROGs: oligomers, monomer-assigned
+PHROGs, PHROGs without metrics, and `phrog_25222`, which has no image); the site summary is
+about 340 KB. On 2026-11-17 the full files for those 255 PHROGs were uploaded to `metrics/` in
+the bucket and added to `SHA256SUMS` (now 138,297 lines). Production needs a build of every
+group (about 6 MB of rank 1 and 24 MB of ranks 2–5 for Pages, and about 800 MB of full files for
+the bucket) before its `metrics/` is pushed.
+
 ## GitHub Pages deployment
 
 `.github/workflows/pages.yml` runs `npm test` and then `scripts/stage_site.sh`. The script
-copies an allowlist of files into `_site/`. It fails if the result is larger than 5 MB, or
+copies an allowlist of files into `_site/`. It fails if the result is larger than 40 MB, or
 contains PNG, PDB or `.gz` files outside `images/`, or contains git-lfs pointers. On a push to
 the site branch (`main` in PHROG_structures_dev, `oligomers` in PHROG_structures), `_site/` is
 deployed with `actions/deploy-pages`. Pull requests run only the build and checks.
