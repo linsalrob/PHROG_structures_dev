@@ -23,6 +23,7 @@ PHROGs are stored in groups of 100, so PHROG 505 is in `phrog_005/`:
 | `thumbnails/phrog_005/phrog_00505.png` | monomer thumbnail (100px) |
 | `montage/phrog_005_montage.png` | montage of the monomers in a group |
 | `oligomer_pdb/`, `oligomer_png/`, `oligomer_thumbnails/`, `oligomer_montage/` | the same for oligomers |
+| `metrics/phrog_005/phrog_00505.json` | oligomer prediction metrics (ipTM, pTM, pDockQ2, pLDDT, PAE, contacts) for every stoichiometry and rank |
 | `SHA256SUMS` | SHA-256 checksums for every file |
 
 For example:

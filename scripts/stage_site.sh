@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Stage the GitHub Pages site into OUTDIR from an explicit allowlist, then check it stays small.
 # Images and PDB files are served from Acacia and must never be published to Pages.
-# Usage: scripts/stage_site.sh [OUTDIR]   (default _site; MAX_BYTES overrides the 5 MB limit)
+# Usage: scripts/stage_site.sh [OUTDIR]   (default _site; MAX_BYTES overrides the 40 MB limit)
+# The limit leaves room for metrics/ (about 30 MB of JSON, see scripts/build_metrics.py).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=${1:-_site}
-MAX_BYTES=${MAX_BYTES:-5000000}
-FILES=(index.html manifest.json images/not_available.png)
+MAX_BYTES=${MAX_BYTES:-40000000}
+FILES=(index.html manifest.json images/not_available.png metrics/*.json metrics/ranks/*.json)
 
 rm -rf "$OUT"
 for f in "${FILES[@]}"; do

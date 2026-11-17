@@ -8,6 +8,16 @@ const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const manifest = JSON.parse(fs.readFileSync(process.argv[2] || path.join(root, 'manifest.json'), 'utf8'));
 const BASE = 'https://projects.pawsey.org.au/phrogstructures-public/';
+// Metrics fixture for group phrog_000: PHROG 6 assigned a trimer, PHROG 1 a monomer (one stoichiometry
+// not predicted), PHROG 2 has no metrics. The ranks file has ranks 2-5 for PHROG 6 only.
+const row = (x) => [x, 0.5, 0.123, 80.04, 0.25];
+const METRICS = {
+  'metrics/phrog_000.json': { cols: ['iptm', 'ptm', 'pdockq2', 'mean_plddt', 'avgif_pae'], phrogs: {
+    6: { a: 3, s: [0.2, 0.9, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3].map(row) },
+    1: { a: 1, s: [row(0.1), null, row(0.1), row(0.1), row(0.1), row(0.1), row(0.1), row(0.1), row(0.1)] } } },
+  'metrics/ranks/phrog_000.json': { cols: ['iptm', 'ptm', 'pdockq2', 'mean_plddt', 'avgif_pae'], phrogs: {
+    6: Array.from({ length: 9 }, () => [0.8, 0.7, 0.6, 0.5].map(row)) } },
+};
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;
 const ok = (cond, msg) => { console.log(`${cond ? 'PASS' : 'FAIL'} ${msg}`); if (!cond) fails++; };
@@ -19,9 +29,10 @@ async function load(url, withManifest) {
     beforeParse(w) {
       w.alert = (m) => alerts.push(m);
       w.scrollTo = () => {};
-      w.fetch = (u) => (withManifest && u === 'manifest.json'
-        ? Promise.resolve({ ok: true, json: () => Promise.resolve(manifest) })
-        : Promise.resolve({ ok: false }));
+      w.fetch = (u) => {
+        const body = withManifest && (u === 'manifest.json' ? manifest : METRICS[u]);
+        return Promise.resolve(body ? { ok: true, json: () => Promise.resolve(body) } : { ok: false });
+      };
     },
   });
   await sleep(100);
@@ -73,6 +84,35 @@ const srcs = (d, sel) => [...d.querySelectorAll(sel)].map((i) => i.getAttribute(
      && d.getElementById('downloadLink').style.display === 'none', 'no structure: message, no download link');
   await go(w, '#/montages/monomers');
   ok(d.getElementById('errorMessage').style.display === 'none', 'error cleared on navigation');
+
+  // oligomer metrics: rank 1 table, assigned row, ranks 2-5 on demand, download link
+  await go(w, '#/dataset/oligomers/phrog_000/phrog_00006');
+  let box = d.getElementById('metrics');  // re-read after navigation: routes re-render the page
+  let rows = [...box.querySelectorAll('tbody tr')];
+  ok(box.style.display === 'block' && rows.length === 9, `metrics table has 9 stoichiometries (${rows.length})`);
+  ok(box.querySelector('tr.assigned').dataset.k === '3' && box.textContent.includes('assigned 3 subunits'), 'assigned stoichiometry highlighted');
+  ok(rows[1].children[1].textContent === '0.90' && rows[1].children[3].textContent === '0.123' && rows[1].children[4].textContent === '80.0',
+     'metric values formatted');
+  ok(box.querySelector('a').href === `${BASE}metrics/phrog_000/phrog_00006.json`, 'full metrics JSON from Acacia');
+  rows[0].querySelector('button').click(); await sleep(50);
+  let ranks = [...box.querySelectorAll('tr.rank')];
+  ok(ranks.length === 4 && ranks[0].children[0].textContent === 'rank 2' && ranks[3].children[1].textContent === '0.50'
+     && rows[0].nextElementSibling === ranks[0], 'expand shows ranks 2-5 under the row');
+  rows[0].querySelector('button').click(); await sleep(50);
+  ok(box.querySelectorAll('tr.rank').length === 0, 'collapse hides ranks');
+  await go(w, '#/dataset/monomers/phrog_000/phrog_00001');
+  box = d.getElementById('metrics');
+  rows = [...box.querySelectorAll('tbody tr')];
+  ok(box.textContent.includes('assigned as a monomer') && !box.querySelector('tr.assigned') && rows[1].textContent.includes('not predicted'),
+     'monomer-assigned PHROG still shows its oligomer metrics');
+  rows[0].querySelector('button').click(); await sleep(50);
+  ok(box.querySelector('tr.rank').textContent.includes('could not be loaded'), 'missing ranks reported');
+  await go(w, '#/dataset/monomers/phrog_000/phrog_00002');
+  box = d.getElementById('metrics');
+  ok(box.textContent === 'There are no oligomer predictions for PHROG 2.', 'PHROG without metrics says so');
+  await go(w, '#/dataset/oligomers/phrog_006/phrog_00602');
+  box = d.getElementById('metrics');
+  ok(box.textContent === 'Oligomer prediction metrics for PHROG 602 could not be loaded.', 'unloadable metrics are not reported as absent');
 
   // search, autocomplete, mode switch
   await go(w, '#/');
